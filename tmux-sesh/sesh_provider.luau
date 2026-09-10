@@ -87,9 +87,13 @@ local function makeResults(query: string, sessions)
 		end
 	end
 
-	tsort(results, function(a, b)
-		return (a.score or 0) > (b.score or 0)
-	end)
+	-- With no filter, preserve Sesh's source ordering. Once the user types,
+	-- rank matches by Noctalia's fuzzy score instead.
+	if query ~= "" then
+		tsort(results, function(a, b)
+			return (a.score or 0) > (b.score or 0)
+		end)
+	end
 	return results
 end
 
