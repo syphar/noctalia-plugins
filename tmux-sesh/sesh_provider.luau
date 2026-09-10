@@ -31,7 +31,7 @@ end
 local function parseSessions(output: string)
 	local decoded, err = noctalia.json.decode(output)
 	if type(decoded) ~= "table" then
-		noctalia.log("noctalia-tmux-sesh: failed to parse sesh list --json: " .. tostring(err))
+		noctalia.log("tmux-sesh: failed to parse sesh list --json: " .. tostring(err))
 		return {}
 	end
 
@@ -270,7 +270,7 @@ function onQuery(query: string)
 		end
 
 		if result.exitCode ~= 0 then
-			noctalia.log("noctalia-tmux-sesh: sesh list failed: " .. tostring(result.stderr or result.stdout))
+			noctalia.log("tmux-sesh: sesh list failed: " .. tostring(result.stderr or result.stdout))
 			setMessage(query, "sesh_list_failed", "sesh_list_failed_subtitle", "alert-triangle")
 			return
 		end
