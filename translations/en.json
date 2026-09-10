@@ -1,0 +1,22 @@
+{
+  "loading": "Loading Sesh sessions…",
+  "loading_subtitle": "Reading tmux sessions, configured projects, and zoxide entries",
+  "no_sessions_found": "No Sesh sessions found",
+  "no_sessions_subtitle": "Create a session or add a project to Sesh, then try again",
+  "sesh_not_found": "sesh not found",
+  "sesh_not_found_subtitle": "Install sesh to use this provider",
+  "sesh_list_failed": "Couldn't load Sesh sessions",
+  "sesh_list_failed_subtitle": "Check that sesh and its configured sources work in a terminal",
+  "settings": {
+    "sesh_command": {
+      "label": "Sesh command",
+      "description": "The sesh executable or its absolute path. Set this to your Mise shim when Noctalia cannot find sesh on PATH."
+    }
+  },
+  "source": {
+    "tmux": "Running tmux session",
+    "config": "Sesh configuration",
+    "tmuxinator": "tmuxinator configuration",
+    "zoxide": "zoxide project"
+  }
+}

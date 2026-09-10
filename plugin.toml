@@ -1,0 +1,25 @@
+id           = "syphar/tmux-sesh"
+name         = "Sesh Provider"
+version      = "0.1.0"
+plugin_api   = 3
+author       = "syphar"
+license      = "MIT"
+icon         = "terminal"
+description  = "Browse and connect Sesh-managed tmux sessions from the launcher. Type /sesh to search."
+tags         = ["launcher", "productivity", "development", "tmux"]
+dependencies = ["sesh", "tmux"]
+
+[[setting]]
+key             = "sesh_command"
+type            = "string"
+label_key       = "settings.sesh_command.label"
+description_key = "settings.sesh_command.description"
+default         = "sesh"
+
+[[launcher_provider]]
+id                       = "provider"
+entry                    = "sesh_provider.luau"
+prefix                   = "ts"
+glyph                    = "terminal"
+include_in_global_search = false
+debounce_ms              = 0
