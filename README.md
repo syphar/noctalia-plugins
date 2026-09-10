@@ -2,7 +2,7 @@
 
 A Noctalia launcher provider for [Sesh](https://github.com/joshmedeski/sesh), the smart tmux session manager.
 
-Type `/sesh` in the Noctalia launcher to search Sesh's live tmux sessions, configured sessions, tmuxinator configurations, and zoxide projects. Selecting an entry opens a terminal and runs `sesh connect` for it in a new terminal window.
+Type `/sesh` in the Noctalia launcher to search Sesh's live tmux sessions, configured sessions, tmuxinator configurations, and zoxide projects. Selecting an entry focuses the existing Ghostty window when the session is already attached; otherwise it opens a new terminal and runs `sesh connect`.
 
 ## Requirements
 

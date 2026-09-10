@@ -2,6 +2,7 @@ local tinsert = table.insert
 local tsort = table.sort
 
 local pendingQuery: string? = nil
+local activationGeneration = 0
 
 local function shellQuote(value: string): string
 	return "'" .. value:gsub("'", "'\"'\"'") .. "'"
@@ -103,6 +104,153 @@ local function setMessage(query: string, titleKey: string, subtitleKey: string, 
 	})
 end
 
+local function openSessionInTerminal(sessionName: string)
+	noctalia.runInTerminal(shellQuote(seshCommand()) .. " connect " .. shellQuote(sessionName))
+end
+
+local function parseTmuxClientPids(output: string, sessionName: string)
+	local pids = {}
+	for line in output:gmatch("[^\r\n]+") do
+		local clientSession, pid = line:match("^(.-)\t(%d+)$")
+		if clientSession == sessionName and pid then
+			tinsert(pids, tonumber(pid))
+		end
+	end
+	return pids
+end
+
+local function parseHyprlandGhosttyWindows(output: string)
+	local decoded, err = noctalia.json.decode(output)
+	if type(decoded) ~= "table" then
+		noctalia.log("tmux-sesh: failed to parse hyprctl clients: " .. tostring(err))
+		return {}
+	end
+
+	local windows = {}
+	for _, client in ipairs(decoded) do
+		local class = type(client.class) == "string" and client.class:lower() or ""
+		if class:find("ghostty", 1, true)
+			and type(client.pid) == "number"
+			and type(client.address) == "string" then
+			tinsert(windows, {
+				pid = client.pid,
+				address = client.address,
+				focusHistoryID = type(client.focusHistoryID) == "number" and client.focusHistoryID or math.huge,
+			})
+		end
+	end
+	return windows
+end
+
+local function parseParentPids(output: string)
+	local parents = {}
+	for pid, parentPid in output:gmatch("(%d+)%s+(%d+)") do
+		parents[tonumber(pid)] = tonumber(parentPid)
+	end
+	return parents
+end
+
+-- The tmux client PID is a descendant of Ghostty's window process. Walking
+-- the parent chain bridges tmux's client identifier to Hyprland's window PID.
+local function findGhosttyWindow(clientPids, windows, parents)
+	local bestWindow = nil
+	for _, clientPid in ipairs(clientPids) do
+		local pid = clientPid
+		local visited = {}
+		while pid and pid > 0 and not visited[pid] do
+			visited[pid] = true
+			for _, window in ipairs(windows) do
+				if window.pid == pid and (not bestWindow or window.focusHistoryID < bestWindow.focusHistoryID) then
+					bestWindow = window
+				end
+			end
+			pid = parents[pid]
+		end
+	end
+	return bestWindow
+end
+
+local function focusExistingGhosttySession(sessionName: string)
+	activationGeneration += 1
+	local generation = activationGeneration
+
+	if not noctalia.commandExists("tmux") or not noctalia.commandExists("hyprctl") then
+		openSessionInTerminal(sessionName)
+		return
+	end
+
+	noctalia.runAsync("tmux list-clients -F '#{session_name}\t#{client_pid}'", function(tmuxResult)
+		if generation ~= activationGeneration then
+			return
+		end
+
+		if tmuxResult.exitCode ~= 0 then
+			openSessionInTerminal(sessionName)
+			return
+		end
+
+		local clientPids = parseTmuxClientPids(tmuxResult.stdout or "", sessionName)
+		if #clientPids == 0 then
+			openSessionInTerminal(sessionName)
+			return
+		end
+
+		noctalia.runAsync("hyprctl -j clients", function(hyprlandResult)
+			if generation ~= activationGeneration then
+				return
+			end
+
+			if hyprlandResult.exitCode ~= 0 then
+				openSessionInTerminal(sessionName)
+				return
+			end
+
+			local windows = parseHyprlandGhosttyWindows(hyprlandResult.stdout or "")
+			if #windows == 0 then
+				openSessionInTerminal(sessionName)
+				return
+			end
+
+			noctalia.runAsync("ps -e -o pid= -o ppid=", function(psResult)
+				if generation ~= activationGeneration then
+					return
+				end
+
+				if psResult.exitCode ~= 0 then
+					openSessionInTerminal(sessionName)
+					return
+				end
+
+				local window = findGhosttyWindow(clientPids, windows, parseParentPids(psResult.stdout or ""))
+				if not window then
+					openSessionInTerminal(sessionName)
+					return
+				end
+
+				noctalia.log("tmux-sesh: focusing existing Ghostty window for " .. sessionName)
+				local selector = "address:" .. window.address
+				local luaDispatcher = 'hl.dsp.focus({ window = "' .. selector .. '" })'
+				noctalia.runAsync("hyprctl dispatch " .. shellQuote(luaDispatcher), function(focusResult)
+					if generation ~= activationGeneration or focusResult.exitCode == 0 then
+						return
+					end
+
+					-- Hyprland 0.54 and older use the pre-Lua dispatcher syntax.
+					noctalia.runAsync("hyprctl dispatch focuswindow " .. shellQuote(selector), function(legacyResult)
+						if generation == activationGeneration and legacyResult.exitCode ~= 0 then
+							noctalia.log(
+								"tmux-sesh: failed to focus Ghostty window: "
+									.. tostring(legacyResult.stderr or legacyResult.stdout)
+							)
+							openSessionInTerminal(sessionName)
+						end
+					end)
+				end)
+			end)
+		end)
+	end)
+end
+
 function onQuery(query: string)
 	query = noctalia.string.trim(query)
 	pendingQuery = query
@@ -141,5 +289,5 @@ function onActivate(id: string)
 		return
 	end
 
-	noctalia.runInTerminal(shellQuote(seshCommand()) .. " connect " .. shellQuote(id))
+	focusExistingGhosttySession(id)
 end
