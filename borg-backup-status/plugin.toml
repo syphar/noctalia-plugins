@@ -1,0 +1,44 @@
+id           = "syphar/borg-backup-status"
+name         = "Borg Backup Status"
+version      = "0.1.0"
+plugin_api   = 3
+author       = "syphar"
+license      = "MIT"
+icon         = "shield-check"
+description  = "A compact bar status for Borg repositories."
+tags         = ["backup", "borg", "status"]
+dependencies = ["borg"]
+
+[[setting]]
+key             = "open_command"
+type            = "string"
+label_key       = "settings.open_command.label"
+description_key = "settings.open_command.description"
+default         = "pika-backup"
+
+[[widget]]
+id      = "backup"
+entry   = "backup_status.luau"
+
+[[widget.setting]]
+key             = "repository"
+type            = "string"
+label_key       = "settings.repository.label"
+description_key = "settings.repository.description"
+default         = ""
+
+[[widget.setting]]
+key             = "mount_path"
+type            = "folder"
+label_key       = "settings.mount_path.label"
+description_key = "settings.mount_path.description"
+default         = ""
+
+[[widget.setting]]
+key             = "max_age_hours"
+type            = "int"
+label_key       = "settings.max_age_hours.label"
+description_key = "settings.max_age_hours.description"
+default         = 192
+min             = 1
+max             = 8760

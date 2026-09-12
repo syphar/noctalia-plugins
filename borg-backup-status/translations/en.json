@@ -1,0 +1,10 @@
+{
+  "settings.open_command.label": "Open command",
+  "settings.open_command.description": "Command launched when the widget is clicked (default: pika-backup).",
+  "settings.repository.label": "Borg repository",
+  "settings.repository.description": "Repository passed to borg --repo. Leave blank when using a custom status command.",
+  "settings.mount_path.label": "Required disk path",
+  "settings.mount_path.description": "Optional. A directory that must exist before the repository is checked; use this for removable backup disks.",
+  "settings.max_age_hours.label": "Maximum backup age (hours)",
+  "settings.max_age_hours.description": "A successful archive older than this is shown as Backup failed. The default is eight days, suitable for a weekly backup."
+}
