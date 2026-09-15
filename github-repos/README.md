@@ -1,7 +1,7 @@
 # GitHub Repositories for Noctalia v5
 
 A standalone Luau launcher plugin. Requires Noctalia plugin API 24 or newer,
-GitHub CLI (`gh`), and `xdg-open`. It does not use PHP or the Alfred workflow.
+GitHub CLI (`gh`), and `xdg-open`.
 
 ## Install
 
@@ -42,8 +42,8 @@ locally with Noctalia's fuzzy matcher. Private repositories require access throu
 the active GitHub CLI credentials.
 
 For `/repo`, the search term filters matching repository names. Matches are
-ordered by non-forks before forks, then accessible repositories before watched
-and organization repositories, then fuzzy score, then alphabetical `owner/name`.
+ordered by non-forks before forks, then source (accessible, watched, organization),
+then fuzzy score, then alphabetical `owner/name`.
 These priorities apply even when a lower-priority repository has a better or
 exact name match. Repositories in multiple sources keep their highest source
 priority. With an empty query, the same priorities apply, followed by collection order. Up to 50 results

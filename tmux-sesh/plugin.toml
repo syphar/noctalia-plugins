@@ -5,7 +5,7 @@ plugin_api   = 3
 author       = "syphar"
 license      = "MIT"
 icon         = "terminal"
-description  = "Browse and connect Sesh-managed tmux sessions from the launcher. Type /sesh to search."
+description  = "Browse and connect Sesh-managed tmux sessions from the launcher. Type /ts to search."
 tags         = ["launcher", "productivity", "development", "tmux"]
 dependencies = ["sesh", "tmux"]
 
