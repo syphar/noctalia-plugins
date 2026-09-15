@@ -1,0 +1,24 @@
+id = "syphar/github-repos"
+name = "GitHub Repositories"
+version = "0.1.0"
+plugin_api = 24
+author = "syphar"
+license = "MIT"
+icon = "brand-github"
+description = "Search your own repositories and repositories across GitHub."
+dependencies = ["gh", "xdg-open"]
+
+[[launcher_provider]]
+id = "repo"
+entry = "repo.luau"
+prefix = "repo"
+glyph = "brand-github"
+include_in_global_search = false
+
+[[launcher_provider]]
+id = "gh"
+entry = "search.luau"
+prefix = "gh"
+glyph = "brand-github"
+include_in_global_search = false
+debounce_ms = 350
