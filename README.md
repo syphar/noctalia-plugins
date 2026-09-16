@@ -5,6 +5,7 @@ Luau plugins for Noctalia, with a separate manifest and README in each directory
 | Plugin | What it does | Declared plugin API |
 | --- | --- | --- |
 | [GitHub Repositories](github-repos/README.md) | Search accessible repositories with `/repo`, or search GitHub with `/gh`. | 24 |
+| [URL Opener](url-opener/README.md) | Open URLs without a slash prefix and search the last 100 opened URLs. | 24 |
 | [Sesh Provider](tmux-sesh/README.md) | Find and connect to Sesh sessions and projects with `/ts`. | 3 |
 | [Borg Backup Status](borg-backup-status/README.md) | Show archive freshness and Borg activity in the bar. | 3 |
 
@@ -19,7 +20,7 @@ mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/noctalia/plugins/tmux-sesh"
 cp -R tmux-sesh/. "${XDG_DATA_HOME:-$HOME/.local/share}/noctalia/plugins/tmux-sesh/"
 ```
 
-Replace `tmux-sesh` in both paths with `github-repos` or `borg-backup-status` to
+Replace `tmux-sesh` in both paths with `github-repos`, `url-opener`, or `borg-backup-status` to
 install another plugin. Each installed directory should contain its own
 `plugin.toml`. You can also symlink an individual plugin directory using its
 absolute checkout path.
@@ -37,12 +38,14 @@ Run from the repository root:
 
 ```sh
 noctalia plugins lint github-repos
+noctalia plugins lint url-opener
 noctalia plugins lint tmux-sesh
 noctalia plugins lint borg-backup-status
 lua tests/run.lua
 ```
 
-`just tests` also runs the Lua tests. The current suite covers only GitHub
-Repositories, using a mocked Noctalia host. It does not exercise the live launcher,
-browser, Sesh window focusing, or Borg widget. See the Borg README for a standalone
-probe command, and verify UI behavior in a running Noctalia session.
+`just tests` also runs the Lua tests. The current suite covers GitHub Repositories
+and URL Opener, including URL matching, history persistence, and storage failures,
+using a mocked Noctalia host. It does not exercise the live launcher, browser,
+Sesh window focusing, or Borg widget. See the Borg README for a standalone probe
+command, and verify UI behavior in a running Noctalia session.

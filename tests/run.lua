@@ -7,8 +7,9 @@ local function check(value, message)
 	count = count + 1
 end
 
-local function host(entry)
-	local h = { requests = {}, now = 1000, exists = true, accepted = true }
+local function host(entry, pluginRoot, files)
+	local root = pluginRoot or root
+	local h = { requests = {}, now = 1000, exists = true, accepted = true, files = files or {}, writes = 0 }
 	local env = setmetatable({}, { __index = _G })
 	env.os = {
 		time = function()
@@ -21,6 +22,19 @@ local function host(entry)
 		end,
 	}
 	env.noctalia = {
+		pluginDataDir = function() return "/plugin-data" end,
+		readFile = function(path) return h.files[path] end,
+		writeFile = function(path, value)
+			if h.writeFailure then return false end
+			h.files[path] = value
+			h.writes = h.writes + 1
+			return true
+		end,
+		renameFile = function(from, to)
+			if h.renameFailure then return false end
+			h.files[to], h.files[from] = h.files[from], nil
+			return true
+		end,
 		commandExists = function()
 			return h.exists
 		end,
@@ -32,6 +46,12 @@ local function host(entry)
 			return true
 		end,
 		json = {
+			-- Snapshot the history array so later mutations cannot change a saved file.
+			encode = function(value)
+				local copy = {}
+				for i, item in ipairs(value) do copy[i] = item end
+				return copy
+			end,
 			decode = function(value)
 				return value
 			end,
@@ -240,5 +260,138 @@ check(#h.requests == 0 and h.results[1].subtitle:find("Install", 1, true), "miss
 h.exists, h.accepted = true, false
 h:queryText("rejected")
 check(h.results[1].subtitle:find("Could not start", 1, true), "launch rejection handled")
+
+local urlRoot = testDir .. "../url-opener/"
+local url = host("provider.luau", urlRoot).env.require("./url.luau")
+local validUrls = {
+	{ string.rep("a", 64) .. ".com", "https://" .. string.rep("a", 64) .. ".com" },
+	{ "https://example.com:99999", "https://example.com:99999" },
+	{ "https://-example.com", "https://-example.com" },
+	{ "example.com/%2", "https://example.com/%2" },
+	{ "example.com/%zz", "https://example.com/%zz" },
+	{ "example.com:65536", "https://example.com:65536" },
+	{ "example.com:0", "https://example.com:0" },
+	{ "example-.com", "https://example-.com" },
+	{ "-example.com", "https://-example.com" },
+	{ "ftp://example.com", "ftp://example.com" },
+	{ "example.com", "https://example.com" },
+	{ "  example.com/path?q=a&b=c#part  ", "https://example.com/path?q=a&b=c#part" },
+	{ "HTTP://EXAMPLE.COM:8080/a%20b", "HTTP://EXAMPLE.COM:8080/a%20b" },
+	{ "https://example.com", "https://example.com" },
+	{ "localhost:3000", "https://localhost:3000" },
+	{ "http://intranet/", "http://intranet/" },
+	{ "http://192.168.1.1:80", "http://192.168.1.1:80" },
+	{ "https://192.168.1.1", "https://192.168.1.1" },
+	{ "https://[::1]:8080", "https://[::1]:8080" },
+	{ "http://[2001:db8::1]/", "http://[2001:db8::1]/" },
+	{ "https://[1:2:3:4:5:6:7:8]", "https://[1:2:3:4:5:6:7:8]" },
+	{ "http://[::ffff:192.0.2.1]", "http://[::ffff:192.0.2.1]" },
+	{ "xn--bcher-kva.de", "https://xn--bcher-kva.de" },
+	{ "https://EXAMPLE.com:00443/a%2fb?z=1&a=2&a=3&x=hello+world#part", "https://EXAMPLE.com:00443/a%2fb?z=1&a=2&a=3&x=hello+world#part" },
+}
+for _, pair in ipairs(validUrls) do
+	check(url.normalize(pair[1]) == pair[2], "normalize URL: " .. pair[1])
+end
+local invalidUrls = {
+	"", "  ", "hello", "search for example.com", "/example.com", "//example.com",
+	"/url example.com", "~/example.com", "https://", "https:///example.com",
+	"javascript:alert(1)", "file:///tmp/example.com",
+	"me@example.com", "https://user:pass@example.com", "example..com", ".example.com", "example.com..",
+	"ex_ample.com", "example.123", "999.1.1.1",
+	"1.2.3", "example.com:abc", "example.com:",
+	"example.com:80:90", "example.com/a b",
+	"example.com\\path", "example.com/\npath", "[:::1]", "[1:2:3]", "[::1::2]",
+	"[1:2:3:4:5:6:7:8::]", "[12345::]", "[::ffff:999.0.0.1]", "::1", "[::1]junk",
+	"192.168.1.1", "192.168.1.1:80", "127.0.0.1/path", "[::1]", "[::1]:8080", "[2001:db8::1]/path",
+	"example.com.", "example.com.:8080",
+}
+for _, value in ipairs(invalidUrls) do
+	check(url.normalize(value) == nil, "reject malformed/search input: " .. value)
+end
+
+h = host("provider.luau", urlRoot)
+h:queryText(" example.com ")
+check(h.query == " example.com " and #h.results == 1, "URL result echoes exact query")
+check(h.results[1].id == "https://example.com" and h.results[1].score > 0, "normalized URL is prioritized")
+check(#h.requests == 0, "typing does not open the browser")
+h.env.onActivate(h.results[1].id)
+check(h.requests[1].argv[1] == "xdg-open" and h.requests[1].argv[2] == "https://example.com", "activate URL with argv")
+h:reply("")
+check(h.error == nil, "successful browser opening has no error")
+h:queryText("ordinary search")
+check(#h.results == 0, "invalid input clears previous result")
+h.env.onActivate("https://example.com")
+check(#h.requests == 0, "stale URL cannot be activated")
+local literalUrl = "https://example.com/?q=$(id)&name='quoted'"
+h:queryText(literalUrl)
+h.env.onActivate(h.results[1].id)
+check(#h.requests[1].argv == 2 and h.requests[1].argv[2] == literalUrl, "shell metacharacters remain literal URL data")
+h:reply("", { exitCode = 1 })
+check(h.error ~= nil, "browser failure is reported")
+h.error = nil
+h.env.onActivate(h.results[1].id)
+h:reply("", { timedOut = true })
+check(h.error ~= nil, "browser timeout is reported")
+h.error, h.accepted = nil, false
+h.env.onActivate(h.results[1].id)
+check(h.error ~= nil, "browser launch rejection is reported")
+h:queryText("")
+check(#h.results == 1 and h.results[1].id == "https://example.com", "empty query shows successful opens only")
+
+local files = h.files
+h = host("provider.luau", urlRoot, files)
+h:queryText("EXAM")
+check(#h.results == 1 and h.results[1].id == "https://example.com", "partial history search survives reload and ignores case")
+check(h.writes == 0, "searching history does not write it")
+h:queryText("example.com")
+check(#h.results == 1 and h.results[1].title == "Open in browser", "direct URL deduplicates history")
+h:queryText("example.com/docs")
+local opened = h.results[1].id
+h.env.onActivate(opened)
+h:queryText("other search")
+h:reply("")
+h:queryText("")
+check(h.results[1].id == opened and h.results[2].id == "https://example.com", "callback saves activated URL even after query changes")
+h.env.onActivate(h.results[2].id)
+check(h.requests[1].argv[2] == "https://example.com", "history result can be opened")
+h:reply("")
+h:queryText("")
+check(#h.results == 2 and h.results[1].id == "https://example.com", "reopening moves exact duplicate to front")
+h:queryText("example.com")
+check(#h.results == 2 and h.results[1].score > h.results[2].score, "direct URL ranks above history")
+h:queryText("/example")
+check(#h.results == 0, "slash command does not match history")
+h.env.onActivate(opened)
+check(#h.requests == 0, "hidden history result cannot be activated")
+
+for i = 1, 101 do
+	h:queryText("https://example.com/" .. i)
+	h.env.onActivate(h.results[1].id)
+	h:reply("")
+end
+h = host("provider.luau", urlRoot, files)
+h:queryText("")
+check(#h.results == 100 and h.results[1].id == "https://example.com/101"
+	and h.results[100].id == "https://example.com/2", "persist only 100 most recently opened distinct URLs")
+h.writeFailure = true
+h:queryText("https://example.com/write-failure")
+h.env.onActivate(h.results[1].id)
+h:reply("")
+check(h.error ~= nil and files["/plugin-data/history.json"][1] == "https://example.com/101", "failed save reports error and preserves old file")
+h:queryText("")
+check(h.results[1].id == "https://example.com/write-failure", "history remains available in memory after save failure")
+h.writeFailure, h.renameFailure, h.error = false, true, nil
+h.env.onActivate(h.results[1].id)
+h:reply("")
+check(h.error ~= nil and files["/plugin-data/history.json"][1] == "https://example.com/101", "failed rename preserves previous history")
+
+h = host("provider.luau", urlRoot, { ["/plugin-data/history.json"] = "malformed JSON" })
+h:queryText("")
+check(#h.results == 0, "corrupt history does not break queries")
+h = host("provider.luau", urlRoot, { ["/plugin-data/history.json"] = {
+	"https://example.com", "https://example.com", false, {}, "not a URL", "example.com", "https://other.example",
+} })
+h:queryText("")
+check(#h.results == 2 and h.results[2].id == "https://other.example", "loaded history skips duplicates and invalid entries")
 
 print(string.format("Passed %d checks", count))

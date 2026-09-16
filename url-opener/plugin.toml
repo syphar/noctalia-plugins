@@ -1,0 +1,18 @@
+id = "syphar/url-opener"
+name = "URL Opener"
+version = "0.1.0"
+plugin_api = 24
+author = "syphar"
+license = "MIT"
+icon = "world"
+description = "Open web addresses directly from the launcher, without a slash command."
+tags = ["launcher", "browser", "utility"]
+dependencies = ["xdg-open"]
+
+[[launcher_provider]]
+id = "url"
+entry = "provider.luau"
+prefix = "url"
+glyph = "world"
+include_in_global_search = true
+debounce_ms = 0
