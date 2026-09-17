@@ -30,7 +30,9 @@ and keeps recent URLs in memory for the current session.
 
 Examples: `example.com`, `example.com/docs?q=noctalia#install`,
 `https://example.com`, `http://localhost:3000`, `http://192.168.1.1`, and `http://[::1]:8080`.
-Addresses without a scheme get `https://`; specify `http://` for HTTP-only servers.
+Addresses without a scheme get `https://`, except `localhost`, which defaults to
+`http://` (for example, `localhost:3000` opens `http://localhost:3000`). Specify
+`http://` for other HTTP-only servers or `https://localhost` to use HTTPS locally.
 Explicit URLs are preserved, including scheme casing, paths, queries, fragments,
 and ports. Other `scheme://host` URLs are also accepted and opened through their
 default `xdg-open` handler.

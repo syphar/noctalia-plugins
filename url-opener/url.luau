@@ -27,6 +27,7 @@ function M.normalize(text)
         return nil
     end
     -- Do not rebuild through neturl: its query table can reorder or collapse keys.
+    if not explicitScheme and host:lower() == "localhost" then return "http://" .. value end
     return candidate
 end
 
